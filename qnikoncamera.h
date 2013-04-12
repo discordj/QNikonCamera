@@ -107,6 +107,7 @@ private:
 
 	bool SetValue(unsigned long capID, unsigned long count, unsigned long index);
 	bool SetQuality (QString value);
+	bool SetLiveView(bool enable);
 };
 
 #endif // QNIKONCAMERA_H

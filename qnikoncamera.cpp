@@ -257,7 +257,10 @@ void QNikonCamera::setCameraProperty(QCameraProperties::QCameraPropertyTypes pro
 	
 	
 
-void QNikonCamera::toggleLiveView(bool onoff) {}
+void QNikonCamera::toggleLiveView(bool onoff) {
+	if(SetLiveView(onoff)){
+	}
+}
 	
 int QNikonCamera::batteryLevel() {
 	int batterylevel = 0;
@@ -280,7 +283,17 @@ int QNikonCamera::batteryLevel() {
 
 bool QNikonCamera::hasBulbMode() {return false;}
 bool QNikonCamera::canSetBulbMode() {return false;}
-bool QNikonCamera::hasLiveView() {return false;}
+bool QNikonCamera::hasLiveView() {
+    LPNkMAIDCapInfo pCapInfo = GetCapInfo(pRefSrc, kNkMAIDCapability_LiveViewStatus);
+    if (pCapInfo == NULL) return false;
+
+	// check data type of the capability
+	if ( pCapInfo->ulType != kNkMAIDCapType_Unsigned ) return false;
+	// check if this capability suports CapGet operation.
+	if ( !CheckCapabilityOperation(pRefSrc, kNkMAIDCapability_LiveViewStatus, kNkMAIDCapOperation_Get) ) return false;
+
+	return true;
+}
 bool QNikonCamera::canStreamLiveView() {return false;}
 
 void QNikonCamera::initializeLiveView(){}
@@ -1042,4 +1055,30 @@ bool QNikonCamera::SetQuality (QString value) {
 		return (sizes.count() > 0 ? SetValue(kNkMAIDCapability_ImageSize, sizes.count(), sizes.indexOf(sizecomp.at(0))) : true) && SetValue(kNkMAIDCapability_CompressionLevel, compressions.count(), compressions.indexOf(sizecomp.at(1)));
 
     return false;
+}
+
+bool QNikonCamera::SetLiveView(bool enable) {
+    //wxMutexLocker locker(cameraMutex);   // lock camera
+
+    LPNkMAIDCapInfo pCapInfo = GetCapInfo(pRefSrc, kNkMAIDCapability_LiveViewStatus);
+    if (pCapInfo == NULL) return false;
+
+	// check data type of the capability
+	if ( pCapInfo->ulType != kNkMAIDCapType_Unsigned ) return false;
+	// check if this capability suports CapGet operation.
+	if ( !CheckCapabilityOperation(pRefSrc, kNkMAIDCapability_LiveViewStatus, kNkMAIDCapOperation_Get) ) return false;
+
+    ULONG ulValue;
+	bool success = Command_CapGet(pMAIDEntryPoint, pRefSrc->pObject, kNkMAIDCapability_LiveViewStatus, kNkMAIDDataType_UnsignedPtr, (NKPARAM)&ulValue, NULL, NULL );
+    if (!success) return false;
+
+    if ( !CheckCapabilityOperation(pRefSrc, kNkMAIDCapability_LiveViewStatus, kNkMAIDCapOperation_Set) ) return false;
+
+    // if live view is already in the requested state, we're done.
+    if ((ulValue > 0) == enable) return true;
+
+    ulValue = enable ? 1 : 0;
+    success = Command_CapSet(pMAIDEntryPoint, pRefSrc->pObject, kNkMAIDCapability_LiveViewStatus, kNkMAIDDataType_Unsigned, (NKPARAM)ulValue, NULL, NULL );
+
+    return success;
 }
